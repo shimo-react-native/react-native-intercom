@@ -9,12 +9,6 @@
 #import "IntercomEventEmitter.h"
 #import <Intercom/Intercom.h>
 
-@interface IntercomEventEmitter () {
-    BOOL _hasListeners;
-}
-
-@end
-
 @implementation IntercomEventEmitter
 
 RCT_EXPORT_MODULE();
