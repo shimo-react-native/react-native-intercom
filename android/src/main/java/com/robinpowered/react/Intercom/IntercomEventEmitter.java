@@ -123,7 +123,9 @@ public class IntercomEventEmitter extends ReactContextBaseJavaModule {
 
         @Override
         public void onActivityStopped(Activity activity) {
-            sendEvent(WINDOW_DID_HIDE_NOTIFICATION, null);
+            if (activity.getClass().equals(IntercomMessengerActivity.class)) {
+                sendEvent(WINDOW_DID_HIDE_NOTIFICATION, null);
+            }
         }
 
         @Override
