@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
@@ -19,7 +20,6 @@ import java.util.HashMap;
 
 import io.intercom.android.sdk.Intercom;
 import io.intercom.android.sdk.UnreadConversationCountListener;
-import io.intercom.android.sdk.activities.IntercomMessengerActivity;
 
 public class IntercomEventEmitter extends ReactContextBaseJavaModule {
 
@@ -29,16 +29,35 @@ public class IntercomEventEmitter extends ReactContextBaseJavaModule {
     private static final String WINDOW_DID_SHOW_NOTIFICATION = "IntercomWindowDidShowNotification";
     private static final String WINDOW_DID_HIDE_NOTIFICATION = "IntercomWindowDidHideNotification";
 
-    private boolean mRegistered = false;
-
     public IntercomEventEmitter(ReactApplicationContext reactContext) {
         super(reactContext);
-        Intercom.client().addUnreadConversationCountListener(unreadConversationCountListener);
     }
 
     @Override
     public String getName() {
         return MODULE_NAME;
+    }
+
+    @Override
+    public void initialize() {
+        super.initialize();
+        Intercom.client().addUnreadConversationCountListener(new UnreadConversationCountListener() {
+            @Override
+            public void onCountUpdate(int conversationCount) {
+                handleUpdateUnreadCount();
+            }
+        });
+
+        IntercomState.getInstance().setIntercomStateListener(new IntercomState.IntercomStateListener() {
+            @Override
+            public void onIntercomStateChanged(String intercomState) {
+                if (intercomState.equals(IntercomState.INTERCOM_STATE_ACTIVE)) {
+                    sendEvent(WINDOW_DID_SHOW_NOTIFICATION, null);
+                } else if (intercomState.equals(IntercomState.INTERCOM_STATE_BACKGROUND)) {
+                    sendEvent(WINDOW_DID_HIDE_NOTIFICATION, null);
+                }
+            }
+        });
     }
 
     @Override
@@ -51,27 +70,8 @@ public class IntercomEventEmitter extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    private void registerShowingListener() {
-        if (mRegistered) {
-            return;
-        }
-        Activity activity = this.getCurrentActivity();
-        if (activity != null) {
-            mRegistered = true;
-            activity.getApplication().registerActivityLifecycleCallbacks(activityLifecycleCallbacks);
-        }
-    }
-
-    @ReactMethod
-    private void unregisterShowingListener() {
-        if (!mRegistered) {
-            return;
-        }
-        Activity activity = this.getCurrentActivity();
-        if (activity != null) {
-            mRegistered = false;
-            activity.getApplication().unregisterActivityLifecycleCallbacks(activityLifecycleCallbacks);
-        }
+    private void getIntercomState(Callback callback) {
+        callback.invoke(IntercomState.getInstance().getIntercomState());
     }
 
     private void handleUpdateUnreadCount() {
@@ -91,50 +91,4 @@ public class IntercomEventEmitter extends ReactContextBaseJavaModule {
             }
         }
     }
-
-    private final UnreadConversationCountListener unreadConversationCountListener = new UnreadConversationCountListener() {
-        @Override
-        public void onCountUpdate(int conversationCount) {
-            handleUpdateUnreadCount();
-        }
-    };
-
-    private final Application.ActivityLifecycleCallbacks activityLifecycleCallbacks = new Application.ActivityLifecycleCallbacks() {
-        @Override
-        public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
-        }
-
-        @Override
-        public void onActivityStarted(Activity activity) {
-            if (activity.getClass().equals(IntercomMessengerActivity.class)) {
-                sendEvent(WINDOW_DID_SHOW_NOTIFICATION, null);
-            }
-        }
-
-        @Override
-        public void onActivityResumed(Activity activity) {
-
-        }
-
-        @Override
-        public void onActivityPaused(Activity activity) {
-
-        }
-
-        @Override
-        public void onActivityStopped(Activity activity) {
-            if (activity.getClass().equals(IntercomMessengerActivity.class)) {
-                sendEvent(WINDOW_DID_HIDE_NOTIFICATION, null);
-            }
-        }
-
-        @Override
-        public void onActivitySaveInstanceState(Activity activity, Bundle outState) {
-
-        }
-
-        @Override
-        public void onActivityDestroyed(Activity activity) {
-        }
-    };
 }
